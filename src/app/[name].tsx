@@ -3,13 +3,20 @@ import React, { useEffect, useState } from "react";
 import { Link, router, Stack, useLocalSearchParams } from "expo-router";
 import * as FileSystem from "expo-file-system";
 import { MaterialIcons } from "@expo/vector-icons";
+import { getFileType } from "../utils/fileType";
+import { useVideoPlayer, VideoPlayer, VideoView } from "expo-video";
 
 const camera = () => {
   const { name } = useLocalSearchParams<{ name: string }>();
+  const fullUri = FileSystem.Paths.document.uri + name;
+  const type = getFileType(fullUri);
+  const player = useVideoPlayer(fullUri, (player) => {
+    player.loop = true;
+    player.play();
+  });
 
   // const [uri, setUri] = useState<string | null>(null);
   // const fileName = name ; // 👈 the name of your saved image
-  const fullUri = FileSystem.Paths.document.uri + name;
 
   // console.log(FileSystem.Paths.document, "This is document")
 
@@ -37,7 +44,7 @@ const camera = () => {
     const file = new FileSystem.File(fullUri);
     // console.log(file, 'this is file')
     await file.delete();
-    router.back()
+    router.back();
   };
 
   return (
@@ -63,10 +70,18 @@ const camera = () => {
           ),
         }}
       />
-      <Image
-        source={{ uri: fullUri }}
-        style={{ height: "100%", width: "100%" }}
-      />
+      {type === "image" && (
+        <Image
+          source={{ uri: fullUri }}
+          style={{ height: "100%", width: "100%" }}
+        />
+      )}
+      {type === "video" && (
+        <VideoView player={player} style={{ width: "100%", flex: 1 }} />
+        // <VideoPlayer
+        //   style={{ height: "100%", width: "100%" }}
+        // />
+      )}
       {/* <Text style={{ fontSize: 24, fontWeight: "600" }}>
         Image detail : {name}
       </Text> */}
