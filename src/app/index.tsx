@@ -1,18 +1,38 @@
-import { View, Text, Pressable, StyleSheet } from "react-native";
-import React, { useEffect, useState } from "react";
-import { Link } from "expo-router";
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  FlatList,
+  Image,
+} from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import { Link, useFocusEffect } from "expo-router";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 // import { Directory, Paths } from "expo-file-system";
 import * as FileSystem from "expo-file-system";
+import { FileType, getFileType } from "../utils/fileType";
+import { useVideoPlayer } from "expo-video";
+
+type Media = {
+  name: string;
+  uri: string;
+  fileType: FileType;
+};
 
 const homeScreen = () => {
-  const [images, setImages] = useState<string[]>([]);
+  const [images, setImages] = useState<Media[]>([]);
+  // useEffect(() => {
+  //   loadFiles();
+  // }, []);
 
-  useEffect(() => {
-    loadScreen();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadFiles();
+    }, [])
+  );
 
-  const loadScreen = async () => {
+  const loadFiles = async () => {
     try {
       const docDir = new FileSystem.Directory(FileSystem.Paths.document);
 
@@ -22,24 +42,33 @@ const homeScreen = () => {
         return;
       }
 
-      const entries = docDir.list();
-      const imageUris: string[] = [];
+      const allFiles = docDir.list();
+      const imageUris: Media[] = [];
 
-      for (const entry of entries) {
-        if ("list" in entry) {
+      for (const file of allFiles) {
+        if ("list" in file) {
+          // console.log(file.list(), "new");
           // Optional: if you ever save inside subdirectories like /images
-          const subItems = entry.list();
+          const subItems = file.list();
           for (const sub of subItems) {
-            if (!("list" in sub) && isImageFile(sub.uri)) {
-              imageUris.push(sub.uri);
+            if (!("list" in sub) && isMediaFile(sub.uri)) {
+              imageUris.push({
+                name: extractFileName(sub.uri),
+                uri: sub.uri,
+                fileType: getFileType(sub.uri),
+              });
             }
           }
-        } else if (isImageFile(entry.uri)) {
-          imageUris.push(entry.uri);
+        } else if (isMediaFile(file.uri)) {
+          imageUris.push({
+            name: extractFileName(file.uri),
+            uri: file.uri,
+            fileType: getFileType(file.uri),
+          });
         }
       }
 
-      console.log("✅ Loaded image URIs:", imageUris);
+      // console.log("✅ Loaded image URIs:", JSON.stringify(imageUris));
       setImages(imageUris);
     } catch (error) {
       console.error("❌ Error loading files:", error);
@@ -48,17 +77,58 @@ const homeScreen = () => {
   };
 
   // Helper function to filter only image files
-  const isImageFile = (uri: string) => {
-    return uri.match(/\.(jpg|jpeg|png|gif|heic|webp)$/i);
+  // const isImageFile = (uri: string) => {
+  //   return uri.match(/\.(jpg|jpeg|png|gif|heic|webp)$/i);
+  // };
+
+  const isMediaFile = (uri: string) => {
+    return uri.match(/\.(jpg|jpeg|png|gif|heic|webp|mp4|mov|avi|mkv|webm)$/i);
+  };
+
+  const extractFileName = (uri: string) => {
+    return uri.substring(uri.lastIndexOf("/") + 1);
   };
 
   return (
-    <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-      <Text style={{ fontSize: 24, fontWeight: "600" }}>home screen</Text>
+    <View style={{ flex: 1 }}>
+      <FlatList
+        data={images}
+        numColumns={3}
+        contentContainerStyle={{ gap: 1 }}
+        columnWrapperStyle={{ gap: 1 }}
+        renderItem={(image) => (
+          <Link href={`/${image.item.name}`} asChild>
+            <Pressable style={{ flex: 1, maxWidth: "33.33%" }}>
+              {image.item.fileType === "image" && (
+                <Image
+                  source={{ uri: image.item.uri }}
+                  style={{ aspectRatio: 3 / 4, borderRadius: 5 }}
+                />
+              )}
 
-      <Link href="/image-1">image 1</Link>
+              {image.item.fileType === "video" && (
+                <>
+                  <MaterialIcons
+                    name="play-circle-outline"
+                    style={{ position: "absolute" }}
+                    size={30}
+                    color="white"
+                  />
+                  <Image
+                    source={{ uri: image.item.uri }}
+                    style={{ aspectRatio: 3 / 4, borderRadius: 5 }}
+                  />
+                </>
+              )}
+            </Pressable>
+          </Link>
+        )}
+      />
+      {/* <Text style={{ fontSize: 24, fontWeight: "600" }}>home screen</Text> */}
+
+      {/* <Link href="/image-1">image 1</Link>
       <Link href="/image-2">image 2</Link>
-      <Link href="/image-3">image 3</Link>
+      <Link href="/image-3">image 3</Link> */}
 
       <Link href="/camera" asChild>
         <Pressable style={style.floatingButton}>
@@ -218,36 +288,35 @@ const style = StyleSheet.create({
 //   }
 // };
 
+// useEffect(() => {
+//   loadScreen();
+// }, []);
 
-  // useEffect(() => {
-  //   loadScreen();
-  // }, []);
+// const loadScreen = async () => {
+//   // const FileSystem = new File()
+//   // const res = await FileSystem
+//   try {
+//     // if (!FileSystem.readDirectoryAsync) {
+//     //   return;
+//     // }
 
-  // const loadScreen = async () => {
-  //   // const FileSystem = new File()
-  //   // const res = await FileSystem
-  //   try {
-  //     // if (!FileSystem.readDirectoryAsync) {
-  //     //   return;
-  //     // }
+//     // const directoryContents = await FileSystem.readDirectoryAsync(
+//     //   FileSystem.documentDirectory
+//     // );
 
-  //     // const directoryContents = await FileSystem.readDirectoryAsync(
-  //     //   FileSystem.documentDirectory
-  //     // );
+//         // Get the document directory path correctly
+//   // const documentDirectory = await FileSystem.documentDirectory();
+//   const directoryContents = await FileSystem.readDirectoryAsync(FileSystem.documentDirectory);
 
-  //         // Get the document directory path correctly
-  //   // const documentDirectory = await FileSystem.documentDirectory();
-  //   const directoryContents = await FileSystem.readDirectoryAsync(FileSystem.documentDirectory);
+//   // Read the directory contents
+//   const directoryContents = await FileSystem.readDirectoryAsync(documentDirectory);
 
-  //   // Read the directory contents
-  //   const directoryContents = await FileSystem.readDirectoryAsync(documentDirectory);
+//   console.log(directoryContents);
+//   } catch (err) {}
 
-  //   console.log(directoryContents);
-  //   } catch (err) {}
+//   // const res = await FileSystem.readDirectoryAsync(
+//   //   FileSystem.documentDirectory()
+//   // )
 
-  //   // const res = await FileSystem.readDirectoryAsync(
-  //   //   FileSystem.documentDirectory()
-  //   // )
-
-  //   // console.log(res)
-  // };
+//   // console.log(res)
+// };
